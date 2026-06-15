@@ -74,7 +74,7 @@ curl http://localhost:8000/api/v1/devices/{device_id}/sms/query \
 
 ## 前端控制台
 
-项目包含 `frontend/` React SPA 管理台。开发时通过 Vite 代理访问后端 API，生产构建后由 FastAPI 同源托管。
+项目包含 `frontend/` React SPA 管理台。开发时通过 Vite 代理访问后端 API；容器部署时由 NGINX 暴露 80 端口并反向代理到 FastAPI，FastAPI 同源返回前端构建产物和 `/api/v1/*` 接口。
 
 开发启动：
 
@@ -90,7 +90,7 @@ npm run dev
 
 打开 `http://localhost:5173`，前端会把 `/api/*` 代理到 `http://localhost:8000`。
 
-生产构建：
+本地构建运行：
 
 ```bash
 cd frontend
@@ -99,7 +99,13 @@ cd ..
 uv run uvicorn app.main:app --port 8000
 ```
 
-构建产物位于 `frontend/dist`。当该目录存在时，FastAPI 会在 `/` 托管控制台页面，`/api/v1/*` 仍由后端接口处理。
+Docker Compose 部署：
+
+```bash
+docker compose up --build
+```
+
+访问 `http://localhost`。镜像内同时运行 NGINX 与 FastAPI，只对外暴露 80 端口：NGINX 监听 80 并把所有请求转发到容器内 `127.0.0.1:8000`，FastAPI 负责返回前端构建产物和 `/api/v1/*` 接口。容器入口脚本会先执行数据库迁移，再启动 FastAPI 和 NGINX。
 
 ## 验证
 
