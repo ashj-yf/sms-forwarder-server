@@ -1,0 +1,17 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: sqlite:////data/smsf.db
+      PUBLIC_BASE_URL: http://localhost:8000
+      JWT_SECRET: change-me-jwt-secret
+      APP_SECRET: change-me-app-secret-at-least-32-chars
+    volumes:
+      - smsf-data:/data
+    command: >
+      sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+
+volumes:
+  smsf-data:
