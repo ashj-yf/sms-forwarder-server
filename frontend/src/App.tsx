@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type React from 'react';
 import { FormEvent, useState } from 'react';
 import { Link, NavLink, Navigate, Outlet, Route, Routes, useNavigate, useOutletContext, useParams } from 'react-router-dom';
-import { Battery, Contact, Gauge, MapPin, MessageSquare, Phone, Radio, RotateCw, Settings, Webhook } from 'lucide-react';
+import { Battery, Contact, Cable, Gauge, MapPin, MessageSquare, Phone, Radio, RotateCw, Settings, Webhook } from 'lucide-react';
 
 import { getCurrentUser, login } from './api/endpoints/auth';
 import { createDevice, getDevice, listDevices, updateDevice } from './api/endpoints/devices';
@@ -13,9 +13,10 @@ import { queryConfig } from './api/endpoints/config';
 import { queryContacts } from './api/endpoints/contacts';
 import { queryLocation } from './api/endpoints/location';
 import { querySms } from './api/endpoints/sms';
+import { getTunnel, enableTunnel, updateTunnel, disableTunnel, rotateTunnelToken, getTunnelFrpcConfig } from './api/endpoints/tunnels';
 import { ApiError } from './api/client';
 import { queryKeys } from './api/queryKeys';
-import type { DeviceCreate, DeviceOut, DeviceUpdate, QueryMode, QueryResult } from './api/types';
+import type { DeviceCreate, DeviceOut, DeviceUpdate, QueryMode, QueryResult, TunnelOut, TunnelUpdateIn } from './api/types';
 import { clearStoredToken, getStoredToken, setStoredToken } from './store/auth';
 import { compactJson, formatDateTime } from './utils/format';
 
@@ -221,7 +222,7 @@ function DeviceEditor(props: { title: string; submitLabel: string; initial?: Dev
 }
 
 const tabs = [
-  ['overview', '概览'], ['sms', '短信'], ['calls', '通话'], ['contacts', '联系人'], ['battery', '电量'], ['location', '位置'], ['config', '配置'], ['webhook', 'Webhook'], ['settings', '设置'],
+  ['overview', '概览'], ['sms', '短信'], ['calls', '通话'], ['contacts', '联系人'], ['battery', '电量'], ['location', '位置'], ['config', '配置'], ['tunnel', '隧道'], ['webhook', 'Webhook'], ['settings', '设置'],
 ] as const;
 
 function DeviceDetailLayout(): React.JSX.Element {
@@ -285,6 +286,76 @@ function BatteryTab(): React.JSX.Element { const device = useDevice(); return <Q
 function LocationTab(): React.JSX.Element { const device = useDevice(); return <QueryPanel title="位置快照" icon={<MapPin size={18} />} realtimeDisabled={device.channel_type === 'webhook_only'} run={(mode) => queryLocation(device.device_id, { mode })} />; }
 function ConfigTab(): React.JSX.Element { const device = useDevice(); return <QueryPanel title="配置快照" icon={<Settings size={18} />} realtimeDisabled={device.channel_type === 'webhook_only'} run={(mode) => queryConfig(device.device_id, { mode })} />; }
 
+function TunnelTab(): React.JSX.Element {
+  const device = useDevice();
+  const queryClient = useQueryClient();
+  const [localIp, setLocalIp] = useState('127.0.0.1');
+  const [localPort, setLocalPort] = useState('8080');
+  const [useEncryption, setUseEncryption] = useState(true);
+  const [useCompression, setUseCompression] = useState(true);
+  const [secret, setSecret] = useState<{ title: string; content: string; filename?: string } | null>(null);
+  const tunnelQuery = useQuery({ queryKey: queryKeys.devices.tunnel(device.device_id), queryFn: () => getTunnel(device.device_id) });
+  const refresh = async (): Promise<void> => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.devices.tunnel(device.device_id) }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.devices.detail(device.device_id) }),
+    ]);
+  };
+  const enableMutation = useMutation({ mutationFn: () => enableTunnel(device.device_id, tunnelPayload(localIp, localPort, useEncryption, useCompression)), onSuccess: refresh });
+  const updateMutation = useMutation({ mutationFn: () => updateTunnel(device.device_id, tunnelPayload(localIp, localPort, useEncryption, useCompression) as TunnelUpdateIn), onSuccess: refresh });
+  const disableMutation = useMutation({ mutationFn: () => disableTunnel(device.device_id), onSuccess: refresh });
+  const rotateMutation = useMutation({ mutationFn: () => rotateTunnelToken(device.device_id), onSuccess: (data) => setSecret({ title: '一次性 frp token', content: data.token }) });
+  const configMutation = useMutation({ mutationFn: () => getTunnelFrpcConfig(device.device_id), onSuccess: (data) => setSecret({ title: 'frpc 配置', content: data.content, filename: data.filename }) });
+  const tunnel = tunnelQuery.data;
+  const pending = enableMutation.isPending || updateMutation.isPending || disableMutation.isPending || rotateMutation.isPending || configMutation.isPending;
+  const error = enableMutation.error ?? updateMutation.error ?? disableMutation.error ?? rotateMutation.error ?? configMutation.error ?? tunnelQuery.error;
+
+  return (
+    <section className="card grid">
+      <div className="split"><h2><Cable size={18} /> frp 隧道</h2><span className={`badge ${tunnel?.enabled ? 'ok' : ''}`}>{tunnel?.enabled ? tunnel.status : '未启用'}</span></div>
+      <p className="muted">启用后后端会把设备 Base URL 同步为 frps 内部地址，实时查询会透明走 frp。</p>
+      {tunnel ? <TunnelSummary tunnel={tunnel} /> : <div className="notice">当前设备还没有隧道配置。</div>}
+      <div className="form-grid">
+        <label className="field">设备侧本地 IP<input className="input" value={localIp} onChange={(event) => setLocalIp(event.target.value)} placeholder="127.0.0.1" /></label>
+        <label className="field">设备侧本地端口<input className="input" type="number" min="1" max="65535" value={localPort} onChange={(event) => setLocalPort(event.target.value)} placeholder="8080" /></label>
+        <label className="field"><span><input type="checkbox" checked={useEncryption} onChange={(event) => setUseEncryption(event.target.checked)} /> 启用传输加密</span></label>
+        <label className="field"><span><input type="checkbox" checked={useCompression} onChange={(event) => setUseCompression(event.target.checked)} /> 启用传输压缩</span></label>
+      </div>
+      <div className="actions">
+        <button className="btn primary" onClick={() => enableMutation.mutate()} disabled={pending || Boolean(tunnel?.enabled)}>启用隧道</button>
+        <button className="btn" onClick={() => updateMutation.mutate()} disabled={pending || !tunnel}>保存配置</button>
+        <button className="btn" onClick={() => configMutation.mutate()} disabled={pending || !tunnel}>获取 frpc 配置</button>
+        <button className="btn" onClick={() => rotateMutation.mutate()} disabled={pending || !tunnel}>轮换 token</button>
+        <button className="btn ghost" onClick={() => disableMutation.mutate()} disabled={pending || !tunnel?.enabled}>禁用</button>
+      </div>
+      {error ? <div className="notice error">{errorMessage(error)}</div> : null}
+      {secret ? <OneTimeText title={secret.title} content={secret.content} filename={secret.filename} onClose={() => setSecret(null)} /> : null}
+    </section>
+  );
+}
+
+function TunnelSummary(props: { tunnel: TunnelOut }): React.JSX.Element {
+  const tunnel = props.tunnel;
+  return <div className="grid cards"><MetricCard label="远端端口" value={tunnel.remote_port} /><MetricCard label="内部地址" value={tunnel.internal_base_url} /><MetricCard label="本地目标" value={`${tunnel.local_ip}:${tunnel.local_port}`} /><MetricCard label="最近配置" value={formatDateTime(tunnel.last_config_generated_at)} /></div>;
+}
+
+function tunnelPayload(localIp: string, localPort: string, useEncryption: boolean, useCompression: boolean) {
+  return { local_ip: localIp.trim() || '127.0.0.1', local_port: Number(localPort), use_encryption: useEncryption, use_compression: useCompression };
+}
+
+function OneTimeText(props: { title: string; content: string; filename?: string; onClose: () => void }): React.JSX.Element {
+  return <div className="notice grid"><strong>{props.title}</strong><pre className="mono">{props.content}</pre><div className="actions"><button className="btn primary" onClick={() => void navigator.clipboard.writeText(props.content)}>复制</button>{props.filename ? <button className="btn" onClick={() => downloadText(props.filename!, props.content)}>下载</button> : null}<button className="btn" onClick={props.onClose}>我已保存，关闭</button></div></div>;
+}
+
+function downloadText(filename: string, content: string): void {
+  const url = URL.createObjectURL(new Blob([content], { type: 'text/plain;charset=utf-8' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 function WebhookTab(): React.JSX.Element {
   const device = useDevice();
   const [secret, setSecret] = useState<{ url: string; token: string } | null>(null);
@@ -335,6 +406,7 @@ export default function App(): React.JSX.Element {
             <Route path="battery" element={<BatteryTab />} />
             <Route path="location" element={<LocationTab />} />
             <Route path="config" element={<ConfigTab />} />
+            <Route path="tunnel" element={<TunnelTab />} />
             <Route path="webhook" element={<WebhookTab />} />
             <Route path="settings" element={<SettingsTab />} />
           </Route>

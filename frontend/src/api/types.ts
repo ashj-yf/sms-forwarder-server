@@ -68,6 +68,49 @@ export interface WebhookOut {
   webhook_token: string;
 }
 
+export interface TunnelEnableIn {
+  local_ip?: string;
+  local_port: number;
+  remote_port?: number | null;
+  sync_device_base_url?: boolean;
+  use_encryption?: boolean;
+  use_compression?: boolean;
+}
+
+export interface TunnelUpdateIn {
+  local_ip?: string | null;
+  local_port?: number | null;
+  use_encryption?: boolean | null;
+  use_compression?: boolean | null;
+}
+
+export interface TunnelOut {
+  enabled: boolean;
+  proxy_type: string;
+  proxy_name: string;
+  local_ip: string;
+  local_port: number;
+  remote_port: number;
+  internal_base_url: string;
+  public_base_url: string | null;
+  use_encryption: boolean;
+  use_compression: boolean;
+  status: string;
+  last_config_generated_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TunnelTokenOut {
+  token: string;
+}
+
+export interface TunnelFrpcConfigOut {
+  filename: string;
+  format: string;
+  content: string;
+}
+
 export interface QueryModeRequest {
   mode: QueryMode;
 }

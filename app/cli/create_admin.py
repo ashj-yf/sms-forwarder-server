@@ -17,6 +17,7 @@ DEFAULT_PERMISSIONS = [
     "device:contact:query",
     "device:battery:query",
     "device:location:query",
+    "device:tunnel:manage",
 ]
 
 

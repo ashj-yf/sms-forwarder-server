@@ -21,7 +21,7 @@ export class ApiError extends Error {
 }
 
 interface RequestOptions<TBody> {
-  method?: 'GET' | 'POST' | 'PUT';
+  method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
   body?: TBody;
   signal?: AbortSignal;
 }

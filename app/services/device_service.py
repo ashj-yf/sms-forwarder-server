@@ -1,7 +1,8 @@
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import NotFoundError
+from app.core.exceptions import ConflictError, NotFoundError
 from app.models.device import Device
+from app.models.device_tunnel import DeviceTunnel
 from app.schemas.device import DeviceCreate, DeviceUpdate
 from app.utils.crypto import encrypt
 from app.utils.id_generator import generate_device_id
@@ -36,6 +37,14 @@ class DeviceService:
     def update(self, device_id: str, payload: DeviceUpdate) -> Device:
         device = self.get(device_id)
         changes = payload.model_dump(exclude_unset=True)
+        if "base_url" in changes:
+            active_tunnel = (
+                self.db.query(DeviceTunnel)
+                .filter(DeviceTunnel.device_id == device_id, DeviceTunnel.enabled.is_(True))
+                .one_or_none()
+            )
+            if active_tunnel is not None:
+                raise ConflictError("base_url is managed by tunnel")
         if "base_url" in changes and changes["base_url"] is not None:
             changes["base_url"] = str(changes["base_url"])
         sign_secret = changes.pop("sign_secret", None)

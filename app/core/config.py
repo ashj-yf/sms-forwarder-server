@@ -17,6 +17,18 @@ class Settings(BaseSettings):
     http_timeout_seconds: float = 10.0
     webhook_rate_limit_per_minute: int = 120
     user_query_rate_limit_per_minute: int = 30
+    frps_enabled: bool = False
+    frps_internal_host: str = "127.0.0.1"
+    frps_public_host: str = "localhost"
+    frps_bind_port: int = 7000
+    frps_auth_token: str = "change-me-frps-token"
+    frps_allow_port_min: int = 17000
+    frps_allow_port_max: int = 17999
+    frps_dashboard_port: int = 7500
+    frps_dashboard_user: str = "admin"
+    frps_dashboard_password: str = "change-me"
+    tunnel_proxy_default_use_encryption: bool = True
+    tunnel_proxy_default_use_compression: bool = True
 
 
 @lru_cache

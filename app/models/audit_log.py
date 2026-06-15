@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import JSON, BigInteger, DateTime, Index, String, func
+from sqlalchemy import JSON, BigInteger, DateTime, Index, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -15,7 +15,7 @@ class AuditLog(Base):
         Index("idx_audit_device", "device_id"),
     )
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int | None] = mapped_column(BigInteger)
     action: Mapped[str] = mapped_column(String(128), nullable=False)
     device_id: Mapped[str | None] = mapped_column(String(128))
