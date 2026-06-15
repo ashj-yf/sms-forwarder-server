@@ -1,4 +1,4 @@
-bindPort = ${FRPS_BIND_PORT}
+bindPort = 7000
 
 auth.method = "token"
 auth.token = "${FRPS_AUTH_TOKEN}"

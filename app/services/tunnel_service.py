@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.core.config import get_settings
+from app.core.config import FRPS_BIND_PORT, get_settings
 from app.core.exceptions import ConflictError, NotFoundError
 from app.models.device import Device
 from app.models.device_tunnel import DeviceTunnel
@@ -161,7 +161,7 @@ class TunnelService:
         return "\n".join(
             [
                 f'serverAddr = "{settings.frps_public_host}"',
-                f"serverPort = {settings.frps_bind_port}",
+                f"serverPort = {FRPS_BIND_PORT}",
                 "",
                 'auth.method = "token"',
                 f'auth.token = "{token}"',

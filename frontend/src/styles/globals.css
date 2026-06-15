@@ -338,6 +338,21 @@ th {
   flex-wrap: wrap;
 }
 
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #27303a;
+  border-radius: 999px;
+  background: #0d1015;
+  color: #d6dae1;
+  padding: 9px 12px;
+}
+
+.switch input {
+  accent-color: #ff6a00;
+}
+
 .split {
   display: flex;
   align-items: center;

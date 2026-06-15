@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type React from 'react';
 import { FormEvent, useState } from 'react';
 import { Link, NavLink, Navigate, Outlet, Route, Routes, useNavigate, useOutletContext, useParams } from 'react-router-dom';
-import { Battery, Contact, Cable, Gauge, MapPin, MessageSquare, Phone, Radio, RotateCw, Settings, Webhook } from 'lucide-react';
+import { Battery, Contact, Cable, Gauge, MapPin, MessageSquare, Network, Phone, Radio, RotateCw, Settings, Webhook } from 'lucide-react';
 
 import { getCurrentUser, login } from './api/endpoints/auth';
 import { createDevice, getDevice, listDevices, updateDevice } from './api/endpoints/devices';
@@ -14,9 +14,10 @@ import { queryContacts } from './api/endpoints/contacts';
 import { queryLocation } from './api/endpoints/location';
 import { querySms } from './api/endpoints/sms';
 import { getTunnel, enableTunnel, updateTunnel, disableTunnel, rotateTunnelToken, getTunnelFrpcConfig } from './api/endpoints/tunnels';
+import { listFrpsDevices } from './api/endpoints/frps';
 import { ApiError } from './api/client';
 import { queryKeys } from './api/queryKeys';
-import type { DeviceCreate, DeviceOut, DeviceUpdate, QueryMode, QueryResult, TunnelOut, TunnelUpdateIn } from './api/types';
+import type { DeviceCreate, DeviceOut, DeviceUpdate, FrpsDeviceOut, QueryMode, QueryResult, TunnelOut, TunnelUpdateIn } from './api/types';
 import { clearStoredToken, getStoredToken, setStoredToken } from './store/auth';
 import { compactJson, formatDateTime } from './utils/format';
 
@@ -61,6 +62,7 @@ function AppShell(): React.JSX.Element {
         <nav className="nav-list">
           <NavLink className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} to="/" end><Gauge size={18} />总览</NavLink>
           <NavLink className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} to="/devices"><Radio size={18} />设备</NavLink>
+          <NavLink className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} to="/frps"><Network size={18} />FRPS</NavLink>
         </nav>
       </aside>
       <main className="main-panel">
@@ -182,6 +184,61 @@ function DeviceTable(props: { devices: DeviceOut[]; loading: boolean }): React.J
             <td>{formatDateTime(device.last_seen_at)}</td>
             <td>{formatDateTime(device.last_webhook_at)}</td>
             <td className="mono">{device.webhook_count}</td>
+          </tr>
+        ))}</tbody>
+      </table>
+    </section>
+  );
+}
+
+function FrpsPage(): React.JSX.Element {
+  const [connectedOnly, setConnectedOnly] = useState(true);
+  const frpsQuery = useQuery({ queryKey: queryKeys.frps.devices(connectedOnly), queryFn: () => listFrpsDevices(connectedOnly), refetchInterval: 10000 });
+  const items = frpsQuery.data?.items ?? [];
+
+  return (
+    <div className="grid">
+      <div className="split">
+        <div>
+          <h1 className="page-title">FRPS 接入</h1>
+          <p className="muted">从 frps dashboard 读取 TCP proxies，并与本地设备隧道进行匹配。</p>
+        </div>
+        <div className="actions">
+          <label className="switch"><input type="checkbox" checked={connectedOnly} onChange={(event) => setConnectedOnly(event.target.checked)} />仅显示已接入</label>
+          <button className="btn" onClick={() => void frpsQuery.refetch()} disabled={frpsQuery.isFetching}><RotateCw size={16} />刷新</button>
+        </div>
+      </div>
+      <div className="grid cards">
+        <MetricCard label="匹配设备" value={frpsQuery.isLoading ? '…' : frpsQuery.data?.total ?? 0} />
+        <MetricCard label="已接入" value={frpsQuery.data?.connected ?? 0} tone="ok" />
+        <MetricCard label="筛选" value={connectedOnly ? 'online' : 'all'} />
+      </div>
+      <FrpsDeviceTable devices={items} loading={frpsQuery.isLoading} />
+      {frpsQuery.isError ? <div className="notice error">{errorMessage(frpsQuery.error)}</div> : null}
+    </div>
+  );
+}
+
+function FrpsDeviceTable(props: { devices: FrpsDeviceOut[]; loading: boolean }): React.JSX.Element {
+  if (props.loading) {
+    return <div className="card muted">正在读取 frps dashboard…</div>;
+  }
+  if (props.devices.length === 0) {
+    return <div className="card"><h3>没有匹配的 FRPS 设备</h3><p className="muted">确认设备隧道已启用，且 frpc 已成功连接到当前 frps。</p></div>;
+  }
+  return (
+    <section className="card table-wrap">
+      <table>
+        <thead><tr><th>设备</th><th>接入</th><th>Proxy</th><th>远端端口</th><th>设备目标</th><th>流量</th><th>版本</th></tr></thead>
+        <tbody>{props.devices.map((device) => (
+          <tr key={device.device_id}>
+            <td><Link to={`/devices/${device.device_id}/tunnel`}><strong>{device.device_name || '未命名设备'}</strong><div className="mono muted">{device.device_id}</div></Link></td>
+            <td><span className={`badge ${device.connected ? 'ok' : ''}`}>{device.frps_status}</span></td>
+            <td className="mono">{device.proxy_name}</td>
+            <td className="mono">{device.remote_port}</td>
+            <td className="mono">{device.local_ip}:{device.local_port}</td>
+            <td><div className="mono muted">↑ {device.today_traffic_out ?? '-'}</div><div className="mono muted">↓ {device.today_traffic_in ?? '-'}</div></td>
+            <td className="mono">{device.client_version ?? '-'}</td>
           </tr>
         ))}</tbody>
       </table>
@@ -396,6 +453,7 @@ export default function App(): React.JSX.Element {
         <Route element={<AppShell />}>
           <Route index element={<DashboardPage />} />
           <Route path="devices" element={<DevicesListPage />} />
+          <Route path="frps" element={<FrpsPage />} />
           <Route path="devices/new" element={<DeviceFormPage />} />
           <Route path="devices/:deviceId" element={<DeviceDetailLayout />}>
             <Route index element={<Navigate to="overview" replace />} />

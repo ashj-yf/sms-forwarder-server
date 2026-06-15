@@ -3,6 +3,8 @@ from functools import lru_cache
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+FRPS_BIND_PORT = 7000
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
@@ -20,7 +22,6 @@ class Settings(BaseSettings):
     frps_enabled: bool = False
     frps_internal_host: str = "127.0.0.1"
     frps_public_host: str = "localhost"
-    frps_bind_port: int = 7000
     frps_auth_token: str = "change-me-frps-token"
     frps_allow_port_min: int = 17000
     frps_allow_port_max: int = 17999

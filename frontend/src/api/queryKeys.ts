@@ -5,4 +5,7 @@ export const queryKeys = {
     detail: (deviceId: string) => ['devices', deviceId] as const,
     tunnel: (deviceId: string) => ['devices', deviceId, 'tunnel'] as const,
   },
+  frps: {
+    devices: (connectedOnly: boolean) => ['frps', 'devices', connectedOnly] as const,
+  },
 };

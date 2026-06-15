@@ -111,6 +111,30 @@ export interface TunnelFrpcConfigOut {
   content: string;
 }
 
+export interface FrpsDeviceOut {
+  device_id: string;
+  device_name: string | null;
+  channel_type: string;
+  base_url: string | null;
+  tunnel_enabled: boolean;
+  proxy_name: string;
+  remote_port: number;
+  local_ip: string;
+  local_port: number;
+  connected: boolean;
+  frps_status: string;
+  client_version: string | null;
+  today_traffic_in: string | null;
+  today_traffic_out: string | null;
+  last_start_time: string | null;
+}
+
+export interface FrpsDeviceListOut {
+  items: FrpsDeviceOut[];
+  total: number;
+  connected: number;
+}
+
 export interface QueryModeRequest {
   mode: QueryMode;
 }

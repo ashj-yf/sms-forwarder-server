@@ -7,6 +7,7 @@ from app.api.v1 import (
     config,
     contacts,
     devices,
+    frps,
     location,
     sms,
     tunnels,
@@ -19,6 +20,7 @@ router.include_router(auth.router)
 router.include_router(devices.router)
 router.include_router(webhooks.router)
 router.include_router(tunnels.router)
+router.include_router(frps.router)
 router.include_router(config.router)
 router.include_router(sms.router)
 router.include_router(calls.router)

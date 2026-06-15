@@ -11,7 +11,6 @@ services:
       FRPS_ENABLED: "true"
       FRPS_INTERNAL_HOST: 127.0.0.1
       FRPS_PUBLIC_HOST: localhost
-      FRPS_BIND_PORT: 7000
       FRPS_AUTH_TOKEN: change-me-frps-token
       FRPS_ALLOW_PORT_MIN: 17000
       FRPS_ALLOW_PORT_MAX: 17999
